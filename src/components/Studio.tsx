@@ -13,6 +13,9 @@ import { AiPanel, ChromaPanel, ExportPanel, ManualPanel, PixelPanel, RefinePanel
 import { Button, Segmented, cx } from './ui';
 import BatchDialog from './BatchDialog';
 import HelpDialog from './HelpDialog';
+import AdSlot from './AdSlot';
+import { ADS } from '@/lib/ads';
+import Link from 'next/link';
 
 const SECTIONS: { id: Section; label: Key; icon: React.ReactNode }[] = [
   { id: 'upload', label: 'section.upload', icon: <Upload size={18} /> },
@@ -229,6 +232,10 @@ function EmptyState() {
             </div>
           ))}
         </div>
+        <AdSlot slot={ADS.slots.home} className="mt-6 text-left" minHeight={100} />
+        <div className="mt-6 text-[11px] text-faint">
+          <Link href="/privacy/" className="hover:text-fg hover:underline">{t('privacy.link')}</Link>
+        </div>
       </div>
     </div>
   );
@@ -266,6 +273,7 @@ function RightPanel() {
         {panel}
         {doc && section !== 'export' && section !== 'refine' && section !== 'upload' && <RefineSummary />}
         {doc && section !== 'export' && <ExportPanel compact />}
+        {doc && <AdSlot slot={ADS.slots.sidebar} className="hidden lg:block" />}
       </div>
     </aside>
   );

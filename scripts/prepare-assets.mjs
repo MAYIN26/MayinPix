@@ -43,5 +43,14 @@ if (!existsSync(join(dataDir, 'resources.json'))) {
     console.log(`[assets] wrote public/models/${name} (${(buf.length / 1e6).toFixed(1)} MB)`);
   }
 }
+// 3. ads.txt for Google AdSense (only when a publisher ID is configured)
+import { rmSync } from 'node:fs';
+const adsClient = (process.env.NEXT_PUBLIC_ADSENSE_CLIENT || '').trim();
+const adsTxt = join(pub, 'ads.txt');
+if (/^ca-pub-\d{10,20}$/.test(adsClient)) {
+  writeFileSync(adsTxt, `google.com, ${adsClient.replace(/^ca-/, '')}, DIRECT, f08c47fec0942fa0\n`);
+  console.log('[assets] wrote public/ads.txt');
+} else if (existsSync(adsTxt)) rmSync(adsTxt);
+
 const available = readdirSync(modelDst).filter((f) => f.endsWith('.onnx'));
 writeFileSync(join(modelDst, 'manifest.json'), JSON.stringify({ available }, null, 2));

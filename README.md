@@ -34,6 +34,21 @@ GitHub Pages cannot send the cross-origin isolation headers, so AI inference the
 
 To build for a sub-folder yourself: `BASE_PATH=/my-folder npm run build`.
 
+## Ads (Google AdSense, optional)
+
+Ad slots are built in but stay invisible until you configure them. No code changes are needed:
+
+1. Get an approved Google AdSense account for **your own domain**. AdSense requires `ads.txt` at the root of a domain you own, so a `github.io/<repo>` address is normally not accepted. Connect a custom domain to GitHub Pages (Settings → Pages → Custom domain); the deploy workflow then builds without a sub-path automatically.
+2. In AdSense, create two **display ad units** (responsive).
+3. In GitHub: **Settings → Secrets and variables → Actions → Variables**, add:
+   * `ADSENSE_CLIENT`: your publisher ID, e.g. `ca-pub-1234567890123456`
+   * `ADSENSE_SLOT_HOME`: slot ID of the unit for the start screen
+   * `ADSENSE_SLOT_SIDEBAR`: slot ID of the unit for the editor sidebar
+4. Run the deploy workflow again. The build adds the AdSense script, both labelled ad slots and `/ads.txt`, and enables the *Advertising* section of the privacy policy (`/privacy/`).
+5. In AdSense, enable the consent message for the EEA/UK/Switzerland (Privacy & messaging).
+
+Ads are never placed over the image or next to the Download button. Images are still processed only on the device. Local preview with ads: `NO_ISOLATION=1 npm start`, because the cross-origin isolation headers block third-party ad iframes.
+
 ## Languages
 
 The interface is available in **English** (default), **Español**, **Português** and **Français**. Use the language selector in the top bar; the choice is remembered in the browser. Translations live in `src/i18n/` (one file per language). TypeScript fails the build if a language is missing any key.

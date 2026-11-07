@@ -26,12 +26,18 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - id: pages
+        uses: actions/configure-pages@v5
       - name: Build static site
         run: npm run build
         env:
-          # the site is served from https://<user>.github.io/<repo>/
-          BASE_PATH: /${{ github.event.repository.name }}
+          # "/<repo>" on <user>.github.io, empty when a custom domain is configured
+          BASE_PATH: ${{ steps.pages.outputs.base_path }}
           NEXT_TELEMETRY_DISABLED: 1
+          # Google AdSense (optional): Settings → Secrets and variables → Actions → Variables
+          NEXT_PUBLIC_ADSENSE_CLIENT: ${{ vars.ADSENSE_CLIENT }}
+          NEXT_PUBLIC_ADSENSE_SLOT_HOME: ${{ vars.ADSENSE_SLOT_HOME }}
+          NEXT_PUBLIC_ADSENSE_SLOT_SIDEBAR: ${{ vars.ADSENSE_SLOT_SIDEBAR }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: out

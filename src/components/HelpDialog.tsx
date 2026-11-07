@@ -5,6 +5,7 @@ import { useStudio } from '@/store/studio';
 import { useT } from '@/i18n';
 import { HELP } from '@/i18n/help';
 import { SITE } from '@/lib/site';
+import Link from 'next/link';
 
 /** Renders `**bold**` segments. */
 function Rich({ text }: { text: string }) {
@@ -45,6 +46,9 @@ export default function HelpDialog() {
             <p>
               {t('help.source')}{' '}
               <a href={SITE.repo} target="_blank" rel="noopener noreferrer" className="text-accent underline underline-offset-2">{SITE.repo.replace('https://', '')}</a>
+            </p>
+            <p className="mt-1">
+              <Link href="/privacy/" className="text-accent underline underline-offset-2">{t('privacy.link')}</Link>
             </p>
           </section>
           <section>
