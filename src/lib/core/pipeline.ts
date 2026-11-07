@@ -25,7 +25,7 @@ export function processImage(input: ProcessInput): Uint8ClampedArray {
   const { mode, refine } = settings;
   const stage = input.onStage ?? (() => {});
 
-  stage('Keying');
+  stage('stage.keying');
   let alpha: Uint8Array;
   if (mode === 'chroma') alpha = chromaAlpha(rgba, w, h, settings.chroma, protect);
   else if (mode === 'pixel') alpha = pixelAlpha(rgba, w, h, settings.pixel, protect);
@@ -33,7 +33,7 @@ export function processImage(input: ProcessInput): Uint8ClampedArray {
     if (!input.aiMask || input.aiMask.length !== n) throw new Error('AI mask is not available yet.');
     alpha = new Uint8Array(input.aiMask);
     if (settings.ai.smartEdges) {
-      stage('Edge-aware refinement');
+      stage('stage.edgeAware');
       const r = Math.max(2, Math.round((settings.ai.edgeRadius * Math.max(w, h)) / 1024));
       const guided = guidedFilter(rgba, alpha, w, h, r);
       // only replace inside the uncertain band around the edge
@@ -43,7 +43,7 @@ export function processImage(input: ProcessInput): Uint8ClampedArray {
     }
   }
 
-  stage('Refining edges');
+  stage('stage.refining');
   if (refine.invert) for (let i = 0; i < n; i++) alpha[i] = 255 - alpha[i];
 
   if (mode === 'pixel') {
@@ -64,7 +64,7 @@ export function processImage(input: ProcessInput): Uint8ClampedArray {
   }
   if (protect) for (let i = 0; i < n; i++) if (protect[i] && alpha[i] < 255 && !refine.invert) alpha[i] = 255;
 
-  stage('Compositing');
+  stage('stage.compositing');
   const out = new Uint8ClampedArray(rgba.length);
   for (let i = 0; i < n; i++) {
     const o = i * 4;
@@ -79,11 +79,11 @@ export function processImage(input: ProcessInput): Uint8ClampedArray {
   if (mode !== 'pixel' || refine.decontaminate || refine.spill > 0) {
     const key: RGB = mode === 'pixel' ? settings.pixel.keys[0] ?? { r: 0, g: 255, b: 0 } : settings.chroma.key;
     if (refine.decontaminate) {
-      stage('Removing background contamination');
+      stage('stage.decont');
       decontaminate(out, rgba, w, h, mode === 'ai' ? null : key);
     }
     if (refine.spill > 0 && isChromatic(key)) {
-      stage('Suppressing color spill');
+      stage('stage.spill');
       suppressSpill(out, w, h, key, refine.spill / 100, refine.spillScope, Math.max(2, Math.round(refine.feather) + 2));
     }
   }

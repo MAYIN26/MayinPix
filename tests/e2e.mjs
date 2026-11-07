@@ -39,6 +39,7 @@ async function download(page, name) {
   return { path, suggested: dl.suggestedFilename() };
 }
 async function check(name, fn) {
+  if (process.env.ONLY && !name.includes(process.env.ONLY)) return;
   const t0 = Date.now();
   try {
     await fn();
@@ -274,6 +275,39 @@ assert len(names)==3
 for n in names:
   im=Image.open(io.BytesIO(z.read(n))); im.load(); assert im.mode in ('RGBA','RGB')`));
   await sp.close();
+});
+
+await check('Language switch: Español / Português / Français / English, persisted after reload', async () => {
+  const page = await openWith(`${FIX}/greenscreen.jpg`);
+  await waitProcessed(page);
+  const expect = { es: ['DESCARGAR IMAGEN', 'Clave de color / pantalla verde', 'Cómo funciona PixelCut Studio'], pt: ['BAIXAR IMAGEM', 'Chroma key / tela verde', 'Como o PixelCut Studio funciona'], fr: ["TÉLÉCHARGER L'IMAGE", 'Incrustation / fond vert', 'Fonctionnement de PixelCut Studio'], en: ['DOWNLOAD IMAGE', 'Color key / green screen', 'How PixelCut Studio works'] };
+  for (const [lang, [dl, panel, help]] of Object.entries(expect)) {
+    await page.locator('header select').selectOption(lang);
+    await page.locator('footer button', { hasText: dl }).waitFor({ timeout: 3000 });
+    await page.locator('aside h3', { hasText: panel }).waitFor({ timeout: 3000 });
+    const htmlLang = await page.evaluate(() => document.documentElement.lang);
+    if (htmlLang !== lang) throw new Error('html lang ' + htmlLang);
+    await page.keyboard.press('Escape');
+    await page.locator('header nav button').nth(2).click();
+    await page.getByRole('dialog').getByText(help).waitFor({ timeout: 3000 });
+    if (lang === 'es') await page.screenshot({ path: `${OUT}/ui-es-help.png` });
+    await page.keyboard.press('Escape');
+    if (lang === 'fr') await page.screenshot({ path: `${OUT}/ui-fr.png` });
+  }
+  await page.locator('header select').selectOption('es');
+  await page.reload();
+  await page.getByText('Suelta una imagen para quitarle el fondo').waitFor({ timeout: 5000 });
+  await page.locator('input[type=file]').first().setInputFiles(`${FIX}/sprite-green.png`);
+  await page.getByText('Sprite de pixel art detectado').waitFor({ timeout: 10000 });
+  await page.locator('footer', { hasText: / \d+ ms/ }).waitFor();
+  await page.screenshot({ path: `${OUT}/ui-es.png` });
+  const { suggested } = await (async () => {
+    const [d] = await Promise.all([page.waitForEvent('download'), page.locator('footer button', { hasText: 'DESCARGAR IMAGEN' }).click()]);
+    return { suggested: d.suggestedFilename() };
+  })();
+  if (suggested !== 'sprite-green-nobg.png') throw new Error(suggested);
+  await page.getByText(/Guardado sprite-green-nobg.png/).waitFor({ timeout: 5000 });
+  await page.close();
 });
 
 await browser.close();

@@ -7,6 +7,14 @@ import { hexToRgb, rgbToHex } from './core/color';
 import { decodeImage, makeThumb } from './decode';
 import { getModel, CUSTOM_MODEL_ID } from './ai/models';
 import type { ExportOptions } from './exporter';
+import { tr, type Key } from '@/i18n';
+
+/** Workers send translation keys; errors from the export worker carry a code. */
+function errText(err: unknown): string {
+  const m = err instanceof Error ? err.message : String(err);
+  if (m.startsWith('ENCODE_UNSUPPORTED:')) return tr('err.encode', { fmt: m.split(':')[1] });
+  return m;
+}
 
 type Rect = { x0: number; y0: number; x1: number; y1: number };
 
@@ -21,7 +29,7 @@ interface Pending {
   resolve: (v: any) => void;
   reject: (e: Error) => void;
   onStage?: (s: string) => void;
-  onProgress?: (d: { stage: string; progress: number }) => void;
+  onProgress?: (d: { stage: string; progress: number; backend?: string }) => void;
 }
 
 function cropLayer(src: Uint8Array, w: number, r: Rect): Uint8Array {
@@ -88,7 +96,7 @@ class Engine {
     if (!this.proc) {
       this.proc = new Worker(new URL('../workers/process.worker.ts', import.meta.url), { type: 'module' });
       this.proc.onmessage = (e) => this.onWorkerMessage(e.data);
-      this.proc.onerror = (e) => this.store.toast('error', `Processing worker failed: ${e.message}`);
+      this.proc.onerror = (e) => this.store.toast('error', tr('toast.procWorker', { msg: e.message }));
     }
     return this.proc;
   }
@@ -96,7 +104,7 @@ class Engine {
     if (!this.ai) {
       this.ai = new Worker(new URL('../workers/ai.worker.ts', import.meta.url), { type: 'module' });
       this.ai.onmessage = (e) => this.onWorkerMessage(e.data);
-      this.ai.onerror = (e) => this.store.toast('error', `AI worker failed: ${e.message}`);
+      this.ai.onerror = (e) => this.store.toast('error', tr('toast.aiWorker', { msg: e.message }));
     }
     return this.ai;
   }
@@ -130,7 +138,7 @@ class Engine {
   // ───────────────────────── loading ─────────────────────────
   async loadFile(file: File) {
     const st = this.store;
-    st.set({ loading: { active: true, stage: `Decoding ${file.name}`, progress: null } });
+    st.set({ loading: { active: true, stage: tr('stage.decoding', { name: file.name }), progress: null } });
     try {
       const dec = await decodeImage(file);
       const gen = ++this.docGen;
@@ -150,7 +158,7 @@ class Engine {
       this.maskBuf = null;
       this.maskDirty = 'all';
       this.setupCanvases();
-      st.set({ loading: { active: true, stage: 'Analyzing background', progress: null } });
+      st.set({ loading: { active: true, stage: tr('stage.analyzing'), progress: null } });
       const analysis = analyzeImage(rgba, w, h);
       const thumb = makeThumb(rgba, w, h);
       this.procWorker().postMessage({ type: 'load', rgba: rgba.slice(), width: w, height: h });
@@ -181,13 +189,13 @@ class Engine {
       });
       this.applyingHistory = false;
       for (const n of dec.notes) st.toast('info', n);
-      const label = mode === 'pixel' ? 'Pixel-art sprite detected → Pixel Art mode' : mode === 'chroma' ? `Solid background detected (${rgbToHex(key)}) → Color key mode` : 'Complex background → AI mode';
+      const label = mode === 'pixel' ? tr('toast.detectPixel') : mode === 'chroma' ? tr('toast.detectSolid', { hex: rgbToHex(key) }) : tr('toast.detectComplex');
       st.toast('info', label);
       this.bump();
       this.refresh();
     } catch (err) {
       st.set({ loading: { active: false, stage: '', progress: null } });
-      st.toast('error', err instanceof Error ? err.message : String(err));
+      st.toast('error', errText(err));
     }
   }
 
@@ -259,9 +267,9 @@ class Engine {
     this.processQueued = false;
     const gen = this.docGen;
     const settings = this.store.settings;
-    this.store.set({ processing: { ...this.store.processing, active: true, stage: 'Processing' } });
+    this.store.set({ processing: { ...this.store.processing, active: true, stage: tr('stage.processing') } });
     this.call<{ rgba: Uint8ClampedArray; ms: number }>(this.procWorker(), { type: 'process', settings }, [], {
-      onStage: (stage) => this.store.set({ processing: { ...this.store.processing, active: true, stage } }),
+      onStage: (stage) => this.store.set({ processing: { ...this.store.processing, active: true, stage: tr(stage as Key) } }),
     })
       .then((res) => {
         if (gen !== this.docGen) return;
@@ -271,7 +279,7 @@ class Engine {
       })
       .catch((err: Error) => {
         this.store.set({ processing: { active: false, stage: '', ms: null } });
-        if (gen === this.docGen) this.store.toast('error', err.message);
+        if (gen === this.docGen) this.store.toast('error', errText(err));
       })
       .finally(() => {
         this.processInflight = false;
@@ -286,13 +294,13 @@ class Engine {
     const key = this.aiKey(s);
     const model = s.ai.model === CUSTOM_MODEL_ID ? null : getModel(s.ai.model);
     if (s.ai.model === CUSTOM_MODEL_ID && !this.customModel) {
-      st.set({ ai: { ...st.ai, status: 'error', error: 'Choose a custom .onnx model file first.' } });
+      st.set({ ai: { ...st.ai, status: 'error', error: tr('toast.customFirst') } });
       return;
     }
     if (!model && s.ai.model !== CUSTOM_MODEL_ID) return;
     const gen = this.docGen;
     this.aiRunning = key;
-    st.set({ ai: { ...st.ai, status: 'loading', stage: 'Starting AI engine', progress: null, error: null } });
+    st.set({ ai: { ...st.ai, status: 'loading', stage: tr('stage.aiStart'), progress: null, error: null } });
     const desc = model ?? { id: CUSTOM_MODEL_ID, url: '', inputSize: 1024, mean: 128, std: 256, normalizeOutput: true };
     try {
       const res = await this.call<{ mask: Uint8Array; backend: string; inferenceMs: number }>(
@@ -309,7 +317,7 @@ class Engine {
         [],
         {
           onProgress: (d) =>
-            useStudio.setState((x) => ({ ai: { ...x.ai, status: d.stage.startsWith('Running') ? 'running' : 'loading', stage: d.stage, progress: d.progress } })),
+            useStudio.setState((x) => ({ ai: { ...x.ai, status: d.stage === 'stage.running' ? 'running' : 'loading', stage: tr(d.stage as Key, { backend: d.backend ?? '' }), progress: d.progress } })),
         },
       );
       if (gen !== this.docGen) return;
@@ -321,7 +329,7 @@ class Engine {
       if (gen !== this.docGen) return;
       const message = err instanceof Error ? err.message : String(err);
       useStudio.setState((x) => ({ ai: { ...x.ai, status: 'error', stage: '', error: message } }));
-      st.toast('error', `AI removal failed: ${message}`);
+      st.toast('error', tr('toast.aiFailed', { msg: message }));
     } finally {
       if (this.aiRunning === key) this.aiRunning = null;
     }
@@ -408,7 +416,7 @@ class Engine {
         st.setExport({ bgColor: hex, background: 'color' });
         break;
     }
-    st.toast('info', `Picked ${hex.toUpperCase()} at ${p.x}, ${p.y}`);
+    st.toast('info', tr('toast.picked', { hex: hex.toUpperCase(), x: p.x, y: p.y }));
   }
 
   /** One-click preset: finds the actual screen color in the image when it matches the preset hue. */
@@ -541,7 +549,7 @@ class Engine {
     this.protect.fill(0);
     this.recomposite(null);
     this.syncProtect();
-    this.store.toast('info', 'Manual edits cleared');
+    this.store.toast('info', tr('toast.editsCleared'));
   }
 
   /** Fill the whole manual layer: erase everything / restore everything (useful with invert workflows). */
@@ -634,7 +642,7 @@ class Engine {
 
   async download() {
     if (!this.final || !this.processed) {
-      this.store.toast('error', 'Nothing to export yet — upload an image first.');
+      this.store.toast('error', tr('toast.nothing'));
       return;
     }
     const st = this.store;
@@ -646,9 +654,9 @@ class Engine {
       const ext = opts.format === 'jpeg' ? 'jpg' : opts.format === 'tiff' ? 'tif' : opts.format;
       const name = (st.exportOpts.filename.trim() || 'image-nobg').replace(/[\\/:*?"<>|]+/g, '_').replace(/\.(png|jpe?g|webp|tiff?)$/i, '');
       saveBlob(res.blob, `${name}.${ext}`);
-      st.toast('success', `Saved ${name}.${ext} · ${opts.width}×${opts.height} · ${(res.blob.size / 1024 / 1024).toFixed(2)} MB`);
+      st.toast('success', tr('toast.saved', { name: `${name}.${ext}`, w: opts.width, h: opts.height, mb: (res.blob.size / 1024 / 1024).toFixed(2) }));
     } catch (err) {
-      st.toast('error', err instanceof Error ? err.message : String(err));
+      st.toast('error', errText(err));
     } finally {
       st.set({ exporting: false });
     }
@@ -671,7 +679,7 @@ class Engine {
       st.setView({ bg: 'image' });
       st.setExport({ background: 'image', format: st.exportOpts.format === 'jpeg' ? 'jpeg' : st.exportOpts.format });
     } catch {
-      st.toast('error', 'Could not read that background image.');
+      st.toast('error', tr('toast.bgImage'));
     }
   }
 
@@ -684,7 +692,7 @@ class Engine {
     for (let i = 0; i < files.length; i++) {
       const f = files[i];
       try {
-        onItem(i, 'Decoding');
+        onItem(i, 'decoding');
         const dec = await decodeImage(f);
         let s: Settings = settings;
         // per-image auto key so each image's own screen color is used
@@ -694,7 +702,7 @@ class Engine {
         }
         let aiMask: Uint8Array | null = null;
         if (settings.mode === 'ai') {
-          onItem(i, 'Running AI');
+          onItem(i, 'ai');
           const model = getModel(settings.ai.model) ?? getModel('isnet-quint8')!;
           const res = await this.call<{ mask: Uint8Array }>(this.aiWorker(), {
             type: 'run', assetBase: document.baseURI,
@@ -703,7 +711,7 @@ class Engine {
           });
           aiMask = res.mask;
         }
-        onItem(i, 'Processing');
+        onItem(i, 'processing');
         const opts = this.buildExportOptions(dec.width, dec.height);
         const res = await this.call<{ blob: Blob }>(this.procWorker(), { type: 'batch', rgba: dec.rgba, width: dec.width, height: dec.height, settings: s, aiMask, options: opts }, [dec.rgba.buffer]);
         const ext = opts.format === 'jpeg' ? 'jpg' : opts.format === 'tiff' ? 'tif' : opts.format;
@@ -711,9 +719,9 @@ class Engine {
         for (let k = 2; used.has(name); k++) name = `${f.name.replace(/\.[^.]+$/, '')}-nobg-${k}.${ext}`;
         used.add(name);
         results.push({ name, blob: res.blob });
-        onItem(i, 'Done');
+        onItem(i, 'done');
       } catch (err) {
-        onItem(i, `Error: ${err instanceof Error ? err.message : String(err)}`);
+        onItem(i, `error:${errText(err)}`);
       }
     }
     if (!results.length) return;
@@ -723,7 +731,7 @@ class Engine {
     }
     const zip = await this.call<{ blob: Blob }>(this.procWorker(), { type: 'zip', files: results });
     saveBlob(zip.blob, `pixelcut-batch-${results.length}.zip`);
-    st.toast('success', `Batch complete: ${results.length} image(s) saved as ZIP`);
+    st.toast('success', tr('toast.batchDone', { n: results.length }));
   }
 }
 

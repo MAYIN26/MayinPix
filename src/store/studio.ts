@@ -4,6 +4,8 @@ import { DEFAULT_REFINE, DEFAULT_SETTINGS, type Mode, type Settings } from '@/li
 import type { Analysis } from '@/lib/core/detect';
 import type { ExportFormat } from '@/lib/exporter';
 
+export type Lang = 'en' | 'es' | 'pt' | 'fr';
+
 export type Section = 'upload' | 'ai' | 'chroma' | 'pixel' | 'manual' | 'refine' | 'export';
 export type Tool = 'pan' | 'erase' | 'restore' | 'eyedropper';
 export type EyedropTarget = 'chroma' | 'pixel' | 'pixel-add' | 'preview-bg' | 'export-bg';
@@ -81,6 +83,7 @@ export interface StudioState {
   exporting: boolean;
   toasts: Toast[];
   theme: 'dark' | 'light';
+  lang: Lang;
   helpOpen: boolean;
   batchOpen: boolean;
   mobilePanel: boolean;
@@ -96,6 +99,16 @@ export interface StudioState {
 }
 
 let toastId = 0;
+
+/** Saved preferences (the store is only created in the browser: the studio is loaded with ssr: false). */
+function saved<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
+  try {
+    const v = typeof localStorage !== 'undefined' ? localStorage.getItem(key) : null;
+    return (allowed as readonly string[]).includes(v ?? '') ? (v as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 export const useStudio = create<StudioState>((set, get) => ({
   doc: null,
@@ -118,7 +131,8 @@ export const useStudio = create<StudioState>((set, get) => ({
   history: { canUndo: false, canRedo: false },
   exporting: false,
   toasts: [],
-  theme: 'dark',
+  theme: saved('pixelcut-theme', ['dark', 'light'] as const, 'dark'),
+  lang: saved('pixelcut-lang', ['en', 'es', 'pt', 'fr'] as const, 'en'),
   helpOpen: false,
   batchOpen: false,
   mobilePanel: false,

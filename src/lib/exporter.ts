@@ -109,7 +109,7 @@ export async function exportImage(rgba: Uint8ClampedArray, sw: number, sh: numbe
     case 'jpeg': {
       const type = opts.format === 'webp' ? 'image/webp' : 'image/jpeg';
       const blob = await toCanvas(px, dw, dh).convertToBlob({ type, quality: opts.quality });
-      if (blob.type !== type) throw new Error(`This browser cannot encode ${opts.format.toUpperCase()}. Use PNG instead.`);
+      if (blob.type !== type) throw new Error(`ENCODE_UNSUPPORTED:${opts.format.toUpperCase()}`);
       return blob;
     }
   }

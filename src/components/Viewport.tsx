@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useStudio } from '@/store/studio';
 import { engine } from '@/lib/engine';
+import { translate, useT } from '@/i18n';
 
 /** Imperative API used by the toolbar (fit / 100% / zoom). */
 export const viewportApi: { fit: () => void; actual: () => void; zoomBy: (f: number) => void } = {
@@ -34,6 +35,8 @@ function makeChecker(dark: boolean) {
 }
 
 export default function Viewport() {
+  const t = useT();
+  const lang = useStudio((s) => s.lang);
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const loupeRef = useRef<HTMLCanvasElement>(null);
@@ -77,6 +80,7 @@ export default function Viewport() {
     const { w, h, dpr } = size.current;
     const st = useStudio.getState();
     const v = st.view;
+    const BEFORE = translate(st.lang, 'canvas.before'), AFTER = translate(st.lang, 'canvas.after');
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
     if (!engine.resultCanvas || !engine.originalCanvas || !st.doc) return;
@@ -185,11 +189,12 @@ export default function Viewport() {
       ctx.lineWidth = 1;
       ctx.strokeRect(ox + tx - 0.5, ty - 0.5, IW * scale + 1, IH * scale + 1);
       if (v.mode === 'side') {
-        ctx.fillStyle = 'rgba(0,0,0,0.55)';
-        ctx.fillRect(ox + 10, 10, 64, 20);
-        ctx.fillStyle = '#fff';
         ctx.font = '600 11px Inter, system-ui, sans-serif';
-        ctx.fillText(p === 0 ? 'BEFORE' : 'AFTER', ox + 18, 24);
+        const label = p === 0 ? BEFORE : AFTER;
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.fillRect(ox + 10, 10, ctx.measureText(label).width + 16, 20);
+        ctx.fillStyle = '#fff';
+        ctx.fillText(label, ox + 18, 24);
       }
       ctx.restore();
     }
@@ -211,11 +216,12 @@ export default function Viewport() {
       ctx.fillStyle = '#4652e0';
       ctx.beginPath(); ctx.moveTo(sx - 4, h / 2 - 5); ctx.lineTo(sx - 9, h / 2); ctx.lineTo(sx - 4, h / 2 + 5); ctx.fill();
       ctx.beginPath(); ctx.moveTo(sx + 4, h / 2 - 5); ctx.lineTo(sx + 9, h / 2); ctx.lineTo(sx + 4, h / 2 + 5); ctx.fill();
-      ctx.fillStyle = 'rgba(0,0,0,0.55)';
-      ctx.fillRect(10, 10, 64, 20); ctx.fillRect(w - 74, 10, 64, 20);
-      ctx.fillStyle = '#fff';
       ctx.font = '600 11px Inter, system-ui, sans-serif';
-      ctx.fillText('BEFORE', 18, 24); ctx.fillText('AFTER', w - 64, 24);
+      const bw = ctx.measureText(BEFORE).width + 16, aw = ctx.measureText(AFTER).width + 16;
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(10, 10, bw, 20); ctx.fillRect(w - 10 - aw, 10, aw, 20);
+      ctx.fillStyle = '#fff';
+      ctx.fillText(BEFORE, 18, 24); ctx.fillText(AFTER, w - 2 - aw, 24);
     }
     // brush cursor
     const hv = hover.current;
@@ -344,7 +350,7 @@ export default function Viewport() {
 
   // fit when a new document or comparison layout arrives
   useEffect(() => { if (doc) fit(); }, [doc?.id, view.mode === 'side', fit]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { requestRender(); }, [tick, view, tool, brush, mode, theme, bgImage, requestRender]);
+  useEffect(() => { requestRender(); }, [tick, view, tool, brush, mode, theme, bgImage, lang, requestRender]);
 
   // keyboard: space = temporary pan
   useEffect(() => {
@@ -428,7 +434,7 @@ export default function Viewport() {
       return;
     }
     if (st.tool === 'erase' || st.tool === 'restore') {
-      if (!engine.processed) { st.toast('info', 'Wait for processing to finish before painting.'); return; }
+      if (!engine.processed) { st.toast('info', translate(st.lang, 'manual.wait')); return; }
       drag.current = { kind: 'brush' };
       engine.beginStroke(st.tool, x, y);
     }
@@ -504,7 +510,7 @@ export default function Viewport() {
         onPointerCancel={onPointerUp}
         onPointerLeave={onLeave}
         onContextMenu={(e) => e.preventDefault()}
-        aria-label="Image workspace"
+        aria-label={t('canvas.label')}
       />
       <div
         className="pointer-events-none absolute z-20 w-[148px] overflow-hidden rounded-xl border border-line-strong bg-panel/95 shadow-2xl backdrop-blur"
@@ -516,14 +522,14 @@ export default function Viewport() {
             <div className="text-fg">x {readout.x} · y {readout.y}</div>
             <div className="flex items-center gap-1.5">
               <span className="inline-block h-2.5 w-2.5 rounded-sm border border-line" style={{ background: `rgb(${readout.original.slice(0, 3).join(',')})` }} />
-              src {readout.original.join(',')}
+              {t('loupe.src')} {readout.original.join(',')}
             </div>
             <div className="flex items-center gap-1.5">
               <span className="checker inline-block h-2.5 w-2.5 rounded-sm border border-line" style={{ backgroundImage: readout.result[3] ? 'none' : undefined, background: readout.result[3] ? `rgba(${readout.result.slice(0, 3).join(',')},${readout.result[3] / 255})` : undefined }} />
-              out {readout.result.join(',')}
+              {t('loupe.out')} {readout.result.join(',')}
             </div>
             <div className={readout.result[3] === 0 ? 'text-accent' : readout.result[3] === 255 ? 'text-success' : 'text-amber-400'}>
-              {readout.result[3] === 0 ? 'fully transparent' : readout.result[3] === 255 ? 'fully opaque' : `semi-transparent ${Math.round((readout.result[3] / 255) * 100)}%`}
+              {readout.result[3] === 0 ? t('loupe.transparent') : readout.result[3] === 255 ? t('loupe.opaque') : t('loupe.semi', { pct: Math.round((readout.result[3] / 255) * 100) })}
             </div>
           </div>
         )}

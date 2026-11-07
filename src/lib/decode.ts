@@ -1,3 +1,5 @@
+import { tr } from '@/i18n';
+
 export const ACCEPTED: Record<string, string> = {
   'image/png': 'PNG',
   'image/jpeg': 'JPEG',
@@ -42,20 +44,20 @@ export async function decodeImage(file: File): Promise<Decoded> {
   const declared = detectType(file);
   const real = await sniff(file);
   const type = real ?? declared;
-  if (!type) throw new Error(`"${file.name}" is not a supported image. Use PNG, JPG, WEBP, BMP, GIF or AVIF.`);
+  if (!type) throw new Error(tr('err.unsupported', { name: file.name }));
   const notes: string[] = [];
-  if (type === 'image/gif') notes.push('GIF: only the first frame is processed (animation is not supported).');
+  if (type === 'image/gif') notes.push(tr('toast.gif'));
   let bmp: ImageBitmap;
   try {
     bmp = await createImageBitmap(file, { colorSpaceConversion: 'none', premultiplyAlpha: 'none', imageOrientation: 'from-image' });
   } catch {
-    if (type === 'image/avif') throw new Error('This browser cannot decode AVIF images. Try Chrome, Edge, Firefox or Safari 16+.');
-    throw new Error(`Could not decode "${file.name}". The file may be corrupted.`);
+    if (type === 'image/avif') throw new Error(tr('err.avif'));
+    throw new Error(tr('err.decode', { name: file.name }));
   }
   const { width, height } = bmp;
   if (width * height > MAX_PIXELS) {
     bmp.close();
-    throw new Error(`Image is ${width}×${height} (${((width * height) / 1e6).toFixed(1)} MP). The maximum is ${MAX_PIXELS / 1e6} MP.`);
+    throw new Error(tr('err.tooLarge', { w: width, h: height, mp: ((width * height) / 1e6).toFixed(1), max: MAX_PIXELS / 1e6 }));
   }
   const canvas = document.createElement('canvas');
   canvas.width = width;

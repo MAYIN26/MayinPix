@@ -22,6 +22,10 @@ npm start            # serves ./out with COOP/COEP headers (multi-threaded WASM)
 
 `npm run dev` and `npm run build` first run `scripts/prepare-assets.mjs`, which copies ONNX Runtime Web into `public/ort/` and assembles the ISNet model into `public/models/` from the `@imgly/background-removal-data` package. This means the app needs no CDN and never uploads anything. Add the higher-quality fp16 model with `npm run prepare-assets -- --with-fp16`.
 
+## Languages
+
+The interface is available in **English** (default), **Español**, **Português** and **Français**. Use the language selector in the top bar; the choice is remembered in the browser. Translations live in `src/i18n/` (one file per language). TypeScript fails the build if a language is missing any key.
+
 ## Removal modes
 
 | Mode | How it works |

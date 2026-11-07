@@ -45,7 +45,7 @@ async function fetchWithProgress(url: string, id: number): Promise<ArrayBuffer> 
     cache = await caches.open(cacheName);
     const hit = await cache.match(url);
     if (hit) {
-      post({ type: 'progress', id, stage: 'Loading cached model', progress: 1 });
+      post({ type: 'progress', id, stage: 'stage.cached', progress: 1 });
       return await hit.arrayBuffer();
     }
   } catch {
@@ -66,7 +66,7 @@ async function fetchWithProgress(url: string, id: number): Promise<ArrayBuffer> 
     const now = performance.now();
     if (now - last > 100) {
       last = now;
-      post({ type: 'progress', id, stage: 'Downloading model', progress: total ? loaded / total : 0, loaded, total });
+      post({ type: 'progress', id, stage: 'stage.download', progress: total ? loaded / total : 0, loaded, total });
     }
   }
   const buf = new Uint8Array(loaded);
@@ -91,7 +91,7 @@ async function getSession(req: AiRunRequest): Promise<Ort.InferenceSession> {
   const cached = sessions.get(key);
   if (cached) return cached;
   const bytes = req.customModel ?? (await fetchWithProgress(new URL(req.model.url, req.assetBase).href, req.id));
-  post({ type: 'progress', id: req.id, stage: 'Initializing model', progress: 1 });
+  post({ type: 'progress', id: req.id, stage: 'stage.init', progress: 1 });
   let session: Ort.InferenceSession | null = null;
   const gpu = (navigator as Navigator & { gpu?: unknown }).gpu;
   if (gpu) {
@@ -115,7 +115,7 @@ async function run(req: AiRunRequest) {
   const { id, width: w, height: h, model } = req;
   const session = await getSession(req);
   const o = ort!;
-  post({ type: 'progress', id, stage: 'Preparing input', progress: 1 });
+  post({ type: 'progress', id, stage: 'stage.input', progress: 1 });
   const S = model.inputSize;
   // high-quality downscale for the model input only
   const bmp = await createImageBitmap(new ImageData(new Uint8ClampedArray(req.rgba), w, h));
@@ -133,7 +133,7 @@ async function run(req: AiRunRequest) {
     input[plane + i] = (px[i * 4 + 1] - model.mean) / model.std;
     input[2 * plane + i] = (px[i * 4 + 2] - model.mean) / model.std;
   }
-  post({ type: 'progress', id, stage: `Running segmentation (${backend.toUpperCase()})`, progress: 1 });
+  post({ type: 'progress', id, stage: 'stage.running', backend: backend.toUpperCase(), progress: 1 });
   const t0 = performance.now();
   const feeds: Record<string, Ort.Tensor> = { [session.inputNames[0]]: new o.Tensor('float32', input, [1, 3, S, S]) };
   const results = await session.run(feeds);
@@ -154,7 +154,7 @@ async function run(req: AiRunRequest) {
     for (let i = 0; i < m.length; i++) m[i] = (m[i] - mn) / range;
   }
   const inferenceMs = Math.round(performance.now() - t0);
-  post({ type: 'progress', id, stage: 'Upscaling mask to original resolution', progress: 1 });
+  post({ type: 'progress', id, stage: 'stage.upscale', progress: 1 });
   const mask = resizeMask(m, ow, oh, w, h);
   post({ type: 'result', id, mask, backend, inferenceMs, modelSize: [ow, oh] }, [mask.buffer]);
 }
