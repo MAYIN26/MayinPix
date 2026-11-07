@@ -2,8 +2,8 @@
 import { useStudio, type EyedropTarget } from '@/store/studio';
 import { DEFAULT_REFINE, type RGB, type Settings } from './core/types';
 import { compositeRect } from './core/composite';
-import { analyzeImage, dominantBorderColor } from './core/detect';
-import { hexToRgb, rgbToHex } from './core/color';
+import { analyzeImage, borderNoise, chromaDefaultsFor, dominantBorderColor } from './core/detect';
+import { hexToRgb, isChromatic, rgbToHex } from './core/color';
 import { decodeImage, makeThumb } from './decode';
 import { getModel, CUSTOM_MODEL_ID } from './ai/models';
 import type { ExportOptions } from './exporter';
@@ -168,7 +168,7 @@ class Engine {
       const settings: Settings = {
         ...base,
         mode,
-        chroma: { ...base.chroma, key },
+        chroma: { ...base.chroma, key, ...analysis.chroma },
         pixel: { ...base.pixel, keys: [key] },
         refine: DEFAULT_REFINE[mode],
       };
@@ -189,7 +189,10 @@ class Engine {
       });
       this.applyingHistory = false;
       for (const n of dec.notes) st.toast('info', n);
-      const label = mode === 'pixel' ? tr('toast.detectPixel') : mode === 'chroma' ? tr('toast.detectSolid', { hex: rgbToHex(key) }) : tr('toast.detectComplex');
+      const label =
+        mode === 'pixel' ? tr('toast.detectPixel')
+        : mode === 'chroma' ? (analysis.kind === 'graphic' ? tr('toast.detectGraphic', { hex: rgbToHex(key) }) : tr('toast.detectSolid', { hex: rgbToHex(key) }))
+        : analysis.kind === 'photo' ? tr('toast.detectPhoto') : tr('toast.detectComplex');
       st.toast('info', label);
       this.bump();
       this.refresh();
@@ -433,19 +436,17 @@ class Engine {
       const want = canon[name];
       key = d && Math.abs(d.color.r - want.r) + Math.abs(d.color.g - want.g) + Math.abs(d.color.b - want.b) < 90 ? d.color : want;
     }
-    const chromatic = name === 'green' || name === 'blue' || name === 'red' || name === 'auto';
+    // tolerance adapted to this image: colored screens match by hue, flat backgrounds use a tight RGB tolerance
+    const kind = st.doc?.analysis.kind ?? 'photo';
+    const screenPreset = name === 'green' || name === 'blue' || name === 'red';
+    const tuned = chromaDefaultsFor(key, borderNoise(this.original, this.w, this.h, key), screenPreset && kind !== 'pixel' ? 'photo' : kind);
+    const chromatic = isChromatic(key);
     st.setSettings((s) => {
       if (s.mode === 'pixel') return { ...s, pixel: { ...s.pixel, keys: [key] } };
       return {
         ...s,
         mode: 'chroma',
-        chroma: {
-          ...s.chroma,
-          key,
-          tolerance: chromatic ? 22 : 6,
-          softness: chromatic ? 10 : 6,
-          hueSensitivity: chromatic ? 60 : 0,
-        },
+        chroma: { ...s.chroma, key, ...tuned },
         refine: s.mode === 'chroma' ? { ...s.refine, spill: chromatic ? 60 : 0 } : DEFAULT_REFINE.chroma,
       };
     });

@@ -34,7 +34,15 @@ The interface is available in **English** (default), **Español**, **Português*
 | **Color key** | Per-pixel distance to the key color mixing RGB and hue distance (hue sensitivity), saturation threshold, tolerance + softness, **color-difference edge matte** (mixed subject/screen pixels get true partial alpha), **edge-connected flood fill** so the same color inside the subject is protected, YCbCr **spill suppression** (keeps luminance) and **background decontamination** (un-mixes the local screen color from edge pixels). One-click presets for green, blue, white, black and red find the actual screen color in the image, plus auto-detection and an eyedropper. |
 | **Pixel Art** | Exact-color (zero tolerance) or distance-limited matching, multiple key colors, 4/8-connected border flood, strictly binary alpha, no smoothing, no new colors, nearest-neighbor preview and nearest-neighbor export scaling. |
 
-On upload the app analyses the image border and its anti-aliasing to pick a starting mode: sprite → Pixel Art, solid border → Color key, otherwise AI.
+On upload the app classifies the image and picks a starting mode:
+
+| Detected as | How | Mode |
+| --- | --- | --- |
+| **Pixel art** | ≤ 256 colors, blocky, and *no anti-aliasing* (edge pixels are not blends of background and subject) | Pixel Art |
+| **Graphic / illustration / logo** | perfectly uniform background (border noise ≈ 0) | Color key with a tolerance derived from the background's own noise (so pale subject colors survive) and the edge matte for smooth, halo-free anti-aliased edges |
+| **Photo** | background with gradients / sensor noise | AI, or Color key for a real green/blue screen |
+
+The **edge matte** works for any key color: every anti-aliased edge pixel is solved as a blend `P = a·F + (1-a)·B` of the local background and the neighbouring subject color, giving it real partial alpha. Decontamination then removes the background color from it. **AI masks are cleaned** before use: low-confidence blotches away from the subject, fuzzy hallucinated regions, background-colored uncertain edge pixels and tiny uncertain specks inside the subject are all handled automatically.
 
 ## Editing
 

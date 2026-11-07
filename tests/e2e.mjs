@@ -29,6 +29,11 @@ async function openWith(file, { width = 1440, height = 900 } = {}) {
   await page.locator('input[type=file]').first().setInputFiles(file);
   return page;
 }
+/** Opens another image in an existing page through the Upload panel. */
+async function loadAnother(page, file) {
+  await page.locator('aside button', { hasText: /^(Upload|Subir|Enviar|Importer)$/ }).first().click();
+  await page.locator('input[type=file][accept*=".jfif"]').setInputFiles(file);
+}
 async function waitProcessed(page, timeout = 120_000) {
   await page.locator('footer', { hasText: / \d+ ms/ }).waitFor({ timeout });
 }
@@ -136,7 +141,7 @@ fg=Image.open('${OUT}/hoodie.png').convert('RGBA').resize((560,560))
 bg.alpha_composite(fg,(232,140)); bg.convert('RGB').save('${OUT}/complex.jpg',quality=93)
 fg_mask=Image.new('L',bg.size,0); fg_mask.paste(fg.getchannel('A'),(232,140)); fg_mask.save('${OUT}/complex-gt.png')`);
   const page = await openWith(`${OUT}/complex.jpg`);
-  await page.getByText('Complex background').waitFor();
+  await page.getByText(/Photo detected|Complex background/).first().waitFor();
   await waitProcessed(page, 240_000);
   const backend = await page.locator('aside').getByText(/Mask ready/).textContent().catch(() => '');
   console.log('   ' + backend);
@@ -275,6 +280,51 @@ assert len(names)==3
 for n in names:
   im=Image.open(io.BytesIO(z.read(n))); im.load(); assert im.mode in ('RGBA','RGB')`));
   await sp.close();
+});
+
+await check('Normal images: cartoon with pale colors, anti-aliased logo, studio product photo (AI)', async () => {
+  const page = await openWith(`${FIX}/cartoon-white.png`);
+  await waitProcessed(page);
+  await page.getByText(/Graphic on a solid background/).first().waitFor();
+  await page.screenshot({ path: `${OUT}/ui-cartoon.png` });
+  const c = await download(page, 'cartoon.png');
+  console.log('   ' + py(`
+from PIL import Image
+import numpy as np
+o=np.array(Image.open('${c.path}')).astype(int); s=np.array(Image.open('${FIX}/cartoon-white.png').convert('RGB')).astype(int)
+assert o[5,5,3]==0
+for (y,x,name) in [(150,350,'pale yellow face'),(280,260,'pink cheek'),(440,350,'light grey shirt'),(205,270,'white eye')]:
+    assert o[y,x,3]==255 and (o[y,x,:3]==s[y,x]).all(), (name, o[y,x])
+# halo check: semi-transparent edge pixels must not be near-white (un-mixed from the white background)
+semi=(o[...,3]>0)&(o[...,3]<255)
+halo=semi&(o[...,:3].min(-1)>215)&(o[...,3]>40)  # visible light fringe
+print('cartoon: semi-transparent edge px', int(semi.sum()), 'visible white-halo px', int(halo.sum()))
+assert halo.sum() < semi.sum()*0.02`));
+  await loadAnother(page, `${FIX}/logo-white.png`);
+  await page.waitForFunction(() => window.__pixelcut.store.doc?.name === 'logo-white.png' && window.__pixelcut.store.settings.mode === 'chroma' && !window.__pixelcut.store.processing.active && window.__pixelcut.store.processing.ms !== null);
+  await page.waitForTimeout(300);
+  const l = await download(page, 'logo.png');
+  console.log('   ' + py(`
+from PIL import Image
+import numpy as np
+o=np.array(Image.open('${l.path}')).astype(int)
+semi=((o[...,3]>0)&(o[...,3]<255)).sum(); print('logo: smooth edge px', int(semi))
+assert semi>500, 'edges should be anti-aliased, not hard pixel-art cuts'
+assert o[150,600,3]==255 and o[150,600,0]<215, ('pale grey text kept', o[150,600])`));
+  await loadAnother(page, `${FIX}/product-photo.jpg`);
+  await page.getByText('Photo detected').first().waitFor();
+  await page.waitForFunction(() => window.__pixelcut.store.doc?.name === 'product-photo.jpg' && window.__pixelcut.store.ai.status === 'ready' && !window.__pixelcut.store.processing.active, null, { timeout: 240_000 });
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${OUT}/ui-product.png` });
+  const p = await download(page, 'product.png');
+  console.log('   ' + py(`
+from PIL import Image
+import numpy as np
+o=np.array(Image.open('${p.path}')); gt=np.array(Image.open('${FIX}/product-photo-gt.png'))>127
+a=o[...,3]>127; iou=(a&gt).sum()/max(1,(a|gt).sum())
+print(f'product photo (AI): IoU {iou:.3f}, white label kept: {o[400,510,3]==255}')
+assert iou>0.9 and o[400,510,3]==255`));
+  await page.close();
 });
 
 await check('Language switch: Español / Português / Français / English, persisted after reload', async () => {

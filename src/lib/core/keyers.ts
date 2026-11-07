@@ -1,5 +1,5 @@
 import { hcv, hueDistance, isChromatic } from './color.ts';
-import type { ChromaParams, PixelParams } from './types.ts';
+import type { ChromaParams, PixelParams, RGB } from './types.ts';
 import { floodFromBorder, morphShift } from './morph.ts';
 
 const MAX_RGB_DIST = Math.sqrt(3 * 255 * 255);
@@ -26,11 +26,6 @@ export function chromaAlpha(
   const tol = p.tolerance / 100;
   const soft = Math.max(1e-4, p.softness / 100);
   const satThr = p.satThreshold / 100;
-  // key chroma vector (YCbCr) for the color-difference matte
-  const kcb = -0.168736 * kr - 0.331264 * kg + 0.5 * kb;
-  const kcr = 0.5 * kr - 0.418688 * kg - 0.081312 * kb;
-  const kl2 = kcb * kcb + kcr * kcr || 1;
-  const useMatte = chromatic && p.matte;
   for (let i = 0; i < n; i++) {
     const o = i * 4;
     const r = rgba[o], g = rgba[o + 1], b = rgba[o + 2];
@@ -52,45 +47,67 @@ export function chromaAlpha(
     else a = Math.round(((d - tol) / soft) * 255);
     out[i] = a;
   }
-  if (useMatte) colorDifferenceMatte(rgba, out, w, h, kcb, kcr, kl2);
+  if (p.matte) edgeMatte(rgba, out, w, h, p.key);
   if (protect) for (let i = 0; i < n; i++) if (protect[i]) out[i] = 255;
   if (p.edgeConnected) restrictToBorder(out, w, h, false, protect);
   return out;
 }
 
 /**
- * Edge matte for colored keys. For a pixel next to the screen, the amount of key chroma it carries is
- * s = t·1 + (1-t)·s_fg, where s_fg is the key chroma of the pure foreground (estimated as the minimum
- * of s in the neighbourhood). Solving for t gives the screen fraction, so alpha = 1 - t.
- * Only pixels within a few pixels of the keyed background are affected; the subject interior is untouched.
+ * Edge matte for any key color (white, black, grey, green…). An anti-aliased edge pixel P is a
+ * blend of the local background B and the subject color F next to it: P = a·F + (1-a)·B.
+ * F is estimated as the neighbour that extends furthest from B in P's direction, so
+ * a = |P - B| / proj(F - B). Only pixels within 2 px of the removed background are touched,
+ * so the subject interior keeps alpha 255 and its exact colors.
  */
-function colorDifferenceMatte(rgba: Uint8ClampedArray, alpha: Uint8Array, w: number, h: number, kcb: number, kcr: number, kl2: number) {
+export function edgeMatte(rgba: Uint8ClampedArray, alpha: Uint8Array, w: number, h: number, key: RGB) {
   const n = w * h;
-  const R = 3;
-  const sq = new Uint8Array(n);
+  const R = 2;
   const bg = new Uint8Array(n);
-  for (let i = 0; i < n; i++) {
-    const o = i * 4;
-    const r = rgba[o], g = rgba[o + 1], b = rgba[o + 2];
-    const cb = -0.168736 * r - 0.331264 * g + 0.5 * b;
-    const cr = 0.5 * r - 0.418688 * g - 0.081312 * b;
-    const s = (cb * kcb + cr * kcr) / kl2; // 1 = pure key
-    sq[i] = Math.max(0, Math.min(255, Math.round((s + 1) * 127.5)));
-    bg[i] = alpha[i] === 0 ? 255 : 0;
-  }
+  for (let i = 0; i < n; i++) bg[i] = alpha[i] === 0 ? 255 : 0;
   const near = morphShift(bg, w, h, R);
-  const sMin = morphShift(sq, w, h, -R);
-  const sMax = morphShift(sq, w, h, R);
-  for (let i = 0; i < n; i++) {
+  const out = new Uint8Array(alpha);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x;
     if (!near[i] || alpha[i] === 0) continue;
-    const s = sq[i] / 127.5 - 1;
-    const fg = sMin[i] / 127.5 - 1;
-    const bgS = Math.max(0.5, sMax[i] / 127.5 - 1); // local screen (handles uneven lighting)
-    if (fg > 0.6 || bgS - fg < 0.25 || s <= fg + 0.04) continue; // no reliable foreground nearby, or pixel is pure foreground
-    const t = (s - fg) / (bgS - fg);
-    const am = Math.round(Math.max(0, Math.min(1, 1 - t)) * 255);
-    if (am < alpha[i]) alpha[i] = am;
+    // local background: average original color of removed pixels nearby (handles gradients / vignetting)
+    let br = 0, bgc = 0, bb = 0, bn = 0;
+    const y0 = Math.max(0, y - 3), y1 = Math.min(h - 1, y + 3), x0 = Math.max(0, x - 3), x1 = Math.min(w - 1, x + 3);
+    for (let yy = y0; yy <= y1; yy++) for (let xx = x0; xx <= x1; xx++) {
+      const j = yy * w + xx;
+      if (alpha[j] !== 0) continue;
+      br += rgba[j * 4]; bgc += rgba[j * 4 + 1]; bb += rgba[j * 4 + 2]; bn++;
+    }
+    if (bn) { br /= bn; bgc /= bn; bb /= bn; } else { br = key.r; bgc = key.g; bb = key.b; }
+    const o = i * 4;
+    // a pixel with many same-colored subject neighbours belongs to a flat region, not to a 1–2 px AA ramp
+    let same = 0;
+    for (let yy = Math.max(0, y - 1); yy <= Math.min(h - 1, y + 1); yy++) for (let xx = Math.max(0, x - 1); xx <= Math.min(w - 1, x + 1); xx++) {
+      const j = yy * w + xx;
+      if (j === i || alpha[j] === 0) continue;
+      const q = j * 4;
+      if (Math.abs(rgba[q] - rgba[o]) + Math.abs(rgba[q + 1] - rgba[o + 1]) + Math.abs(rgba[q + 2] - rgba[o + 2]) <= 6) same++;
+    }
+    if (same >= 4) continue;
+    const dr = rgba[o] - br, dg = rgba[o + 1] - bgc, db = rgba[o + 2] - bb;
+    const len = Math.sqrt(dr * dr + dg * dg + db * db);
+    if (len < 1) continue;
+    const ur = dr / len, ug = dg / len, ub = db / len;
+    let fmax = len;
+    for (let yy = Math.max(0, y - R); yy <= Math.min(h - 1, y + R); yy++) for (let xx = Math.max(0, x - R); xx <= Math.min(w - 1, x + R); xx++) {
+      const j = yy * w + xx;
+      if (alpha[j] === 0) continue;
+      const q = j * 4;
+      const p = (rgba[q] - br) * ur + (rgba[q + 1] - bgc) * ug + (rgba[q + 2] - bb) * ub;
+      if (p > fmax) fmax = p;
+    }
+    const a = len / fmax;
+    if (a < 0.97) {
+      const v = Math.round(a * 255);
+      if (v < out[i]) out[i] = v;
+    }
   }
+  alpha.set(out);
 }
 
 /** Pixel-art keyer: binary alpha, exact or distance-limited color match, optional connectivity. */

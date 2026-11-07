@@ -58,6 +58,7 @@ export function UploadPanel() {
             <div className="truncate text-xs font-medium text-fg" title={doc.name}>{doc.name}</div>
             <div>{doc.format} · {formatBytes(doc.size)}</div>
             <div>{doc.width} × {doc.height} px · {((doc.width * doc.height) / 1e6).toFixed(2)} MP</div>
+            <div>{t('upload.detected')}: <span className="text-fg">{t(`kind.${doc.analysis.kind}` as Key)}</span></div>
           </div>
         </div>
       )}
@@ -180,7 +181,7 @@ export function ChromaPanel() {
       <Slider label={t('chroma.hue')} min={0} max={100} value={chroma.hueSensitivity} disabled={!chromatic} onChange={(v) => set({ hueSensitivity: v })} hint={t('chroma.hueHint')} />
       <Slider label={t('chroma.sat')} min={0} max={60} value={chroma.satThreshold} disabled={!chromatic} onChange={(v) => set({ satThreshold: v })} hint={t('chroma.satHint')} />
       <Slider label={t('chroma.spill')} min={0} max={100} value={refine.spill} disabled={!chromatic} onChange={(v) => setRefine({ spill: v })} hint={t('chroma.spillHint')} />
-      <Toggle label={t('chroma.matte')} disabled={!chromatic} hint={t('chroma.matteHint')} checked={chroma.matte} onChange={(v) => set({ matte: v })} />
+      <Toggle label={t('chroma.matte')} hint={t('chroma.matteHint')} checked={chroma.matte} onChange={(v) => set({ matte: v })} />
       <Toggle label={<span className="flex items-center gap-1"><ShieldCheck size={12} /> {t('chroma.protect')}</span>} hint={t('chroma.protectHint')} checked={chroma.edgeConnected} onChange={(v) => set({ edgeConnected: v })} />
       {!chroma.edgeConnected && <Note tone="warn">{t('chroma.globalWarn')}</Note>}
     </Card>

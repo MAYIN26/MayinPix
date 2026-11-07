@@ -74,7 +74,7 @@ export interface Settings {
 
 export const DEFAULT_REFINE: Record<Mode, RefineParams> = {
   ai: { alphaLow: 12, alphaHigh: 235, shift: 0, feather: 0, invert: false, residueSize: 64, holeSize: 0, spill: 0, spillScope: 'edges', decontaminate: true },
-  chroma: { alphaLow: 0, alphaHigh: 255, shift: 0, feather: 0, invert: false, residueSize: 16, holeSize: 0, spill: 60, spillScope: 'edges', decontaminate: true },
+  chroma: { alphaLow: 8, alphaHigh: 255, shift: 0, feather: 0, invert: false, residueSize: 16, holeSize: 0, spill: 60, spillScope: 'edges', decontaminate: true },
   pixel: { alphaLow: 0, alphaHigh: 255, shift: 0, feather: 0, invert: false, residueSize: 0, holeSize: 0, spill: 0, spillScope: 'edges', decontaminate: false },
 };
 

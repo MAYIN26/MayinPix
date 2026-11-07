@@ -165,3 +165,75 @@ test('color-difference matte: 65/35 skin+green edge pixel gets partial alpha and
   assert.ok(out[5] < out[4], `mixed pixel no longer green-dominant: ${[...out.subarray(4, 8)]}`);
   assert.deepEqual([...out.subarray(8, 12)], [...skin, 255]);
 });
+
+test('graphic on white: pale colors survive with auto tolerance, AA edges get partial alpha (no halo)', () => {
+  // 1D row: white bg | AA blend 50% white/yellow | pale yellow | AA | white
+  const W = 255, Y = [255, 240, 160];
+  const mix = Y.map((v) => Math.round((v + W) / 2));
+  const row = [[W, W, W], [W, W, W], mix, Y, Y, Y, mix, [W, W, W], [W, W, W]];
+  const w = row.length, h = 5;
+  const px = new Uint8ClampedArray(w * h * 4);
+  for (let y = 0; y < h; y++) row.forEach((c, x) => px.set([...c, 255], (y * w + x) * 4));
+  for (let x = 0; x < w; x++) for (const y of [0, h - 1]) px.set([W, W, W, 255], (y * w + x) * 4);
+  const a = analyzeImage(px, w, h);
+  assert.equal(a.kind, 'graphic');
+  const s = settings('chroma', { chroma: { ...DEFAULT_SETTINGS.chroma, key: { r: 255, g: 255, b: 255 }, ...a.chroma }, refine: { ...DEFAULT_REFINE.chroma, residueSize: 0 } });
+  const out = processImage({ rgba: px, width: w, height: h, settings: s });
+  const at = (x: number) => [...out.subarray((2 * w + x) * 4, (2 * w + x) * 4 + 4)];
+  assert.deepEqual(at(4), [255, 240, 160, 255], 'pale yellow kept exactly');
+  assert.ok(at(2)[3] > 60 && at(2)[3] < 200, `AA pixel partially transparent: ${at(2)}`);
+  assert.ok(at(2)[2] < 200, `AA pixel un-mixed from white (blue channel ${at(2)[2]})`);
+  assert.equal(at(0)[3], 0);
+});
+
+test('photo background noise → photo kind → AI mode; uniform graphic → color key', () => {
+  const w = 64, h = 48;
+  const px = new Uint8ClampedArray(w * h * 4);
+  let seed = 1;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647 - 0.5) * 40;
+  for (let i = 0; i < w * h; i++) { const v = 230 + rnd(); px.set([v, v, v + 2, 255], i * 4); }
+  for (let y = 15; y < 35; y++) for (let x = 20; x < 44; x++) px.set([30, 110, 70, 255], (y * w + x) * 4);
+  const a = analyzeImage(px, w, h);
+  assert.equal(a.kind, 'photo');
+  assert.equal(a.suggestedMode, 'ai');
+});
+
+test('AI mask cleanup: faint background blotches are removed, soft edge next to the subject is kept', async () => {
+  const { cleanAiMask } = await import('../src/lib/core/pipeline.ts');
+  const w = 200, h = 200;
+  const m = new Uint8Array(w * h);
+  for (let y = 60; y < 140; y++) for (let x = 60; x < 140; x++) m[y * w + x] = 255; // subject
+  for (let x = 140; x < 144; x++) for (let y = 60; y < 140; y++) m[y * w + x] = 90; // soft hair edge next to it
+  for (let y = 10; y < 30; y++) for (let x = 10; x < 30; x++) m[y * w + x] = 60; // faint blotch far away
+  for (let y = 170; y < 174; y++) for (let x = 170; x < 174; x++) m[y * w + x] = 200; // tiny confident speck
+  const c = cleanAiMask(m, w, h);
+  assert.equal(c[100 * w + 100], 255);
+  assert.equal(c[100 * w + 141], 90);
+  assert.equal(c[20 * w + 20], 0);
+  assert.equal(c[171 * w + 171], 0);
+});
+
+test('AI mask cleanup drops fuzzy hallucinated patches but keeps a second solid subject', async () => {
+  const { cleanAiMask } = await import('../src/lib/core/pipeline.ts');
+  const w = 300, h = 200;
+  const m = new Uint8Array(w * h);
+  for (let y = 40; y < 160; y++) for (let x = 40; x < 140; x++) m[y * w + x] = 255; // subject 1
+  for (let y = 60; y < 120; y++) for (let x = 200; x < 240; x++) m[y * w + x] = 250; // subject 2 (smaller but solid)
+  for (let y = 150; y < 190; y++) for (let x = 250; x < 290; x++) m[y * w + x] = 180; // fuzzy patch
+  const c = cleanAiMask(m, w, h);
+  assert.equal(c[100 * w + 90], 255);
+  assert.equal(c[90 * w + 220], 250);
+  assert.equal(c[170 * w + 270], 0);
+});
+
+test('AI mask cleanup fills small uncertain specks inside the subject, keeps large real holes', async () => {
+  const { cleanAiMask } = await import('../src/lib/core/pipeline.ts');
+  const w = 200, h = 200;
+  const m = new Uint8Array(w * h);
+  for (let y = 20; y < 180; y++) for (let x = 20; x < 180; x++) m[y * w + x] = 255;
+  for (let y = 50; y < 53; y++) for (let x = 50; x < 54; x++) m[y * w + x] = 120; // speck
+  for (let y = 100; y < 160; y++) for (let x = 100; x < 160; x++) m[y * w + x] = 0; // real hole (3600 px)
+  const c = cleanAiMask(m, w, h);
+  assert.equal(c[51 * w + 51], 255);
+  assert.equal(c[130 * w + 130], 0);
+});
