@@ -10,7 +10,7 @@ export interface HelpContent {
 
 export const HELP: Record<Lang, HelpContent> = {
   en: {
-    title: 'How PixelCut Studio works',
+    title: 'How MayinPix works',
     sections: [
       {
         h: '1 · Choose a removal mode',
@@ -41,7 +41,7 @@ export const HELP: Record<Lang, HelpContent> = {
     ],
   },
   es: {
-    title: 'Cómo funciona PixelCut Studio',
+    title: 'Cómo funciona MayinPix',
     sections: [
       {
         h: '1 · Elige un modo de eliminación',
@@ -72,7 +72,7 @@ export const HELP: Record<Lang, HelpContent> = {
     ],
   },
   pt: {
-    title: 'Como o PixelCut Studio funciona',
+    title: 'Como o MayinPix funciona',
     sections: [
       {
         h: '1 · Escolha um modo de remoção',
@@ -103,7 +103,7 @@ export const HELP: Record<Lang, HelpContent> = {
     ],
   },
   fr: {
-    title: 'Fonctionnement de PixelCut Studio',
+    title: 'Fonctionnement de MayinPix',
     sections: [
       {
         h: '1 · Choisissez un mode de suppression',

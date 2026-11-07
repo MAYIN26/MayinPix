@@ -34,7 +34,7 @@ function Logo() {
         <path d="M17 9h6v6h-6zM9 17h6v6H9z" fill="#fff" opacity=".35" />
       </svg>
       <div className="leading-tight">
-        <div className="text-sm font-semibold tracking-tight">PixelCut <span className="text-accent">Studio</span></div>
+        <div className="text-sm font-semibold tracking-tight">Mayin<span className="text-accent">Pix</span></div>
         <div className="hidden text-[10px] text-faint sm:block">{t('app.tagline')}</div>
       </div>
     </div>
@@ -387,11 +387,11 @@ export default function Studio() {
   useEffect(() => engine.init(), []);
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
-    try { localStorage.setItem('pixelcut-theme', theme); } catch { /* ignore */ }
+    try { localStorage.setItem('mayinpix-theme', theme); } catch { /* ignore */ }
   }, [theme]);
   useEffect(() => {
     document.documentElement.lang = lang;
-    try { localStorage.setItem('pixelcut-lang', lang); } catch { /* ignore */ }
+    try { localStorage.setItem('mayinpix-lang', lang); } catch { /* ignore */ }
   }, [lang]);
 
   // paste from clipboard
@@ -452,7 +452,7 @@ export default function Studio() {
     const files = [...e.dataTransfer.files];
     if (files.length > 1) {
       useStudio.getState().set({ batchOpen: true });
-      window.dispatchEvent(new CustomEvent('pixelcut-batch-files', { detail: files }));
+      window.dispatchEvent(new CustomEvent('mayinpix-batch-files', { detail: files }));
       return;
     }
     if (files[0]) void engine.loadFile(files[0]);

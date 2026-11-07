@@ -9,13 +9,13 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const PORT = 4321;
-const BASE = `http://localhost:${PORT}/`;
+const BASE = `http://localhost:${PORT}${(process.env.BASE_PATH || '').replace(/\/$/, '')}/`;
 const FIX = 'tests/fixtures';
 const OUT = 'tests/.out/e2e';
 mkdirSync(OUT, { recursive: true });
 
 execFileSync('python3', ['tests/make_fixtures.py', FIX]);
-const server = spawn('node', ['scripts/serve.mjs', String(PORT)], { stdio: 'ignore' });
+const server = spawn('node', ['scripts/serve.mjs', String(PORT)], { stdio: 'ignore', env: process.env });
 await new Promise((r) => setTimeout(r, 600));
 const browser = await chromium.launch();
 const results = [];
@@ -234,14 +234,14 @@ await check('Eyedropper, 4× nearest export, replacement background, batch ZIP',
   await page.keyboard.press('i');
   const box = await page.locator('canvas[aria-label="Image workspace"]').boundingBox();
   const scale = await page.evaluate(() => {
-    const e = window.__pixelcut; return { w: e.w, h: e.h };
+    const e = window.__mayinpix; return { w: e.w, h: e.h };
   });
   // the image is centered and fit; click its point (600, 800) = blue shirt
   const fitScale = Math.min((box.width - 48) / scale.w, (box.height - 48) / scale.h);
   const ox = box.x + (box.width - scale.w * fitScale) / 2, oy = box.y + (box.height - scale.h * fitScale) / 2;
   await page.mouse.click(ox + 600 * fitScale, oy + 800 * fitScale);
   await page.getByText(/Picked #/).first().waitFor();
-  const key = await page.evaluate(() => window.__pixelcut.store.settings.chroma.key);
+  const key = await page.evaluate(() => window.__mayinpix.store.settings.chroma.key);
   if (!(key.b > 120 && key.r < 80)) throw new Error('picked ' + JSON.stringify(key));
   await page.close();
 
@@ -301,7 +301,7 @@ halo=semi&(o[...,:3].min(-1)>215)&(o[...,3]>40)  # visible light fringe
 print('cartoon: semi-transparent edge px', int(semi.sum()), 'visible white-halo px', int(halo.sum()))
 assert halo.sum() < semi.sum()*0.02`));
   await loadAnother(page, `${FIX}/logo-white.png`);
-  await page.waitForFunction(() => window.__pixelcut.store.doc?.name === 'logo-white.png' && window.__pixelcut.store.settings.mode === 'chroma' && !window.__pixelcut.store.processing.active && window.__pixelcut.store.processing.ms !== null);
+  await page.waitForFunction(() => window.__mayinpix.store.doc?.name === 'logo-white.png' && window.__mayinpix.store.settings.mode === 'chroma' && !window.__mayinpix.store.processing.active && window.__mayinpix.store.processing.ms !== null);
   await page.waitForTimeout(300);
   const l = await download(page, 'logo.png');
   console.log('   ' + py(`
@@ -313,7 +313,7 @@ assert semi>500, 'edges should be anti-aliased, not hard pixel-art cuts'
 assert o[150,600,3]==255 and o[150,600,0]<215, ('pale grey text kept', o[150,600])`));
   await loadAnother(page, `${FIX}/product-photo.jpg`);
   await page.getByText('Photo detected').first().waitFor();
-  await page.waitForFunction(() => window.__pixelcut.store.doc?.name === 'product-photo.jpg' && window.__pixelcut.store.ai.status === 'ready' && !window.__pixelcut.store.processing.active, null, { timeout: 240_000 });
+  await page.waitForFunction(() => window.__mayinpix.store.doc?.name === 'product-photo.jpg' && window.__mayinpix.store.ai.status === 'ready' && !window.__mayinpix.store.processing.active, null, { timeout: 240_000 });
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${OUT}/ui-product.png` });
   const p = await download(page, 'product.png');
@@ -330,7 +330,7 @@ assert iou>0.9 and o[400,510,3]==255`));
 await check('Language switch: Español / Português / Français / English, persisted after reload', async () => {
   const page = await openWith(`${FIX}/greenscreen.jpg`);
   await waitProcessed(page);
-  const expect = { es: ['DESCARGAR IMAGEN', 'Clave de color / pantalla verde', 'Cómo funciona PixelCut Studio'], pt: ['BAIXAR IMAGEM', 'Chroma key / tela verde', 'Como o PixelCut Studio funciona'], fr: ["TÉLÉCHARGER L'IMAGE", 'Incrustation / fond vert', 'Fonctionnement de PixelCut Studio'], en: ['DOWNLOAD IMAGE', 'Color key / green screen', 'How PixelCut Studio works'] };
+  const expect = { es: ['DESCARGAR IMAGEN', 'Clave de color / pantalla verde', 'Cómo funciona MayinPix'], pt: ['BAIXAR IMAGEM', 'Chroma key / tela verde', 'Como o MayinPix funciona'], fr: ["TÉLÉCHARGER L'IMAGE", 'Incrustation / fond vert', 'Fonctionnement de MayinPix'], en: ['DOWNLOAD IMAGE', 'Color key / green screen', 'How MayinPix works'] };
   for (const [lang, [dl, panel, help]] of Object.entries(expect)) {
     await page.locator('header select').selectOption(lang);
     await page.locator('footer button', { hasText: dl }).waitFor({ timeout: 3000 });

@@ -2,7 +2,9 @@ import type { Key } from './en';
 
 export const fr: Record<Key, string> = {
   'app.tagline': 'Détourage sans perte',
-  'app.loading': 'Chargement de PixelCut Studio…',
+  'help.sourceTitle': "Open source",
+  'help.source': "MayinPix est open source. Code, licence et crédits des modèles :",
+  'app.loading': 'Chargement de MayinPix…',
   'nav.remover': "Suppression d'arrière-plan",
   'nav.removerShort': 'Détourer',
   'nav.editor': "Éditeur d'image",

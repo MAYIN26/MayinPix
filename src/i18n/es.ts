@@ -2,7 +2,9 @@ import type { Key } from './en';
 
 export const es: Record<Key, string> = {
   'app.tagline': 'Eliminación de fondo sin pérdida',
-  'app.loading': 'Cargando PixelCut Studio…',
+  'help.sourceTitle': "Código abierto",
+  'help.source': "MayinPix es de código abierto. Código, licencia y créditos de los modelos:",
+  'app.loading': 'Cargando MayinPix…',
   'nav.remover': 'Quitar fondo',
   'nav.removerShort': 'Quitar fondo',
   'nav.editor': 'Editor de imagen',

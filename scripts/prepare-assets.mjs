@@ -26,7 +26,7 @@ console.log('[assets] onnxruntime-web ready in public/ort');
 // 2. ISNet model weights (from @imgly/background-removal-data, AGPL-3.0)
 const dataDir = join(nm, '@imgly', 'background-removal-data', 'dist');
 const models = [['/models/small', 'isnet-quint8.onnx']];
-if (process.argv.includes('--with-fp16') || process.env.PIXELCUT_FP16) models.push(['/models/medium', 'isnet-fp16.onnx']);
+if (process.argv.includes('--with-fp16') || process.env.MAYINPIX_FP16) models.push(['/models/medium', 'isnet-fp16.onnx']);
 const modelDst = join(pub, 'models');
 mkdirSync(modelDst, { recursive: true });
 if (!existsSync(join(dataDir, 'resources.json'))) {

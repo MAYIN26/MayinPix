@@ -1,7 +1,9 @@
 /** English (default). Every other language must provide every key (enforced by TypeScript). */
 export const en = {
   'app.tagline': 'Lossless background removal',
-  'app.loading': 'Loading PixelCut Studio…',
+  'help.sourceTitle': "Open source",
+  'help.source': "MayinPix is open source. Code, license and model credits:",
+  'app.loading': 'Loading MayinPix…',
   'nav.remover': 'Background Remover',
   'nav.removerShort': 'Remover',
   'nav.editor': 'Image Editor',

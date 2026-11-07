@@ -4,6 +4,7 @@ import { X, HelpCircle } from 'lucide-react';
 import { useStudio } from '@/store/studio';
 import { useT } from '@/i18n';
 import { HELP } from '@/i18n/help';
+import { SITE } from '@/lib/site';
 
 /** Renders `**bold**` segments. */
 function Rich({ text }: { text: string }) {
@@ -39,6 +40,13 @@ export default function HelpDialog() {
               {s.p?.map((p) => <p key={p} className={s.items ? 'mt-2' : ''}><Rich text={p} /></p>)}
             </section>
           ))}
+          <section>
+            <h3 className="mb-1 font-semibold text-fg">{t('help.sourceTitle')}</h3>
+            <p>
+              {t('help.source')}{' '}
+              <a href={SITE.repo} target="_blank" rel="noopener noreferrer" className="text-accent underline underline-offset-2">{SITE.repo.replace('https://', '')}</a>
+            </p>
+          </section>
           <section>
             <h3 className="mb-2 font-semibold text-fg">{help.shortcutsTitle}</h3>
             <div className="grid grid-cols-1 gap-x-6 gap-y-1.5 sm:grid-cols-2">

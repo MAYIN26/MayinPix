@@ -1,10 +1,16 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
+const description =
+  'Free background remover that runs in your browser: AI, green screen, solid colors and pixel art. Lossless transparent PNG at full resolution — your images never leave your device.';
+
 export const metadata: Metadata = {
-  title: 'PixelCut Studio — Background Remover',
-  description: 'Remove green screens, solid colors and complex backgrounds locally in your browser. Lossless, full-resolution transparent PNG export.',
-  icons: { icon: 'favicon.svg' },
+  title: 'MayinPix — Background Remover',
+  description,
+  applicationName: 'MayinPix',
+  keywords: ['background remover', 'remove background', 'transparent png', 'green screen', 'chroma key', 'pixel art', 'quitar fondo'],
+  openGraph: { title: 'MayinPix — Background Remover', description, type: 'website', siteName: 'MayinPix' },
+  twitter: { card: 'summary', title: 'MayinPix — Background Remover', description },
 };
 
 export const viewport: Viewport = { width: 'device-width', initialScale: 1, themeColor: '#0e0f12' };

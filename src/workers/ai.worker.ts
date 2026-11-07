@@ -39,7 +39,7 @@ async function loadOrt(assetBase: string) {
 }
 
 async function fetchWithProgress(url: string, id: number): Promise<ArrayBuffer> {
-  const cacheName = 'pixelcut-models-v1';
+  const cacheName = 'mayinpix-models-v1';
   let cache: Cache | null = null;
   try {
     cache = await caches.open(cacheName);

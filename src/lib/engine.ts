@@ -731,7 +731,7 @@ class Engine {
       return;
     }
     const zip = await this.call<{ blob: Blob }>(this.procWorker(), { type: 'zip', files: results });
-    saveBlob(zip.blob, `pixelcut-batch-${results.length}.zip`);
+    saveBlob(zip.blob, `mayinpix-batch-${results.length}.zip`);
     st.toast('success', tr('toast.batchDone', { n: results.length }));
   }
 }
@@ -750,4 +750,4 @@ export function saveBlob(blob: Blob, name: string) {
 export const engine = new Engine();
 
 // Exposed for automated end-to-end tests and debugging from the console.
-if (typeof window !== 'undefined') (window as unknown as { __pixelcut: Engine }).__pixelcut = engine;
+if (typeof window !== 'undefined') (window as unknown as { __mayinpix: Engine }).__mayinpix = engine;

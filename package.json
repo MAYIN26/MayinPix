@@ -1,9 +1,9 @@
 {
-  "name": "pixelcut-studio",
+  "name": "mayinpix",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "PixelCut Studio — local, lossless background removal (AI, chroma key, pixel art)",
+  "description": "MayinPix — local, lossless background removal (AI, chroma key, pixel art)",
   "scripts": {
     "prepare-assets": "node scripts/prepare-assets.mjs",
     "predev": "node scripts/prepare-assets.mjs",

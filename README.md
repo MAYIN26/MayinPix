@@ -1,4 +1,4 @@
-# PixelCut Studio
+# MayinPix
 
 A professional background remover that runs **entirely in the browser**. It removes green screens, solid colors (white, black, any color) and complex photo backgrounds, and exports **lossless, full-resolution transparent PNGs** without touching the subject's pixels.
 
@@ -21,6 +21,18 @@ npm start            # serves ./out with COOP/COEP headers (multi-threaded WASM)
 ```
 
 `npm run dev` and `npm run build` first run `scripts/prepare-assets.mjs`, which copies ONNX Runtime Web into `public/ort/` and assembles the ISNet model into `public/models/` from the `@imgly/background-removal-data` package. This means the app needs no CDN and never uploads anything. Add the higher-quality fp16 model with `npm run prepare-assets -- --with-fp16`.
+
+## Publish it online (free, GitHub Pages)
+
+The repository includes `.github/workflows/deploy.yml`, which builds the site and publishes it on every push to `main`.
+
+1. On GitHub: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+2. Push to `main` (or run the workflow from the **Actions** tab).
+3. The site is published at `https://<user>.github.io/<repository>/`.
+
+GitHub Pages cannot send the cross-origin isolation headers, so AI inference there runs single-threaded WebAssembly. That is a little slower, but everything works. Hosts that support custom headers can serve `out/` with `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` for multi-threading (see `scripts/serve.mjs`). Note: the ISNet model file is 44 MB, so hosts with a 25 MB per-file limit (e.g. Cloudflare Pages) won't work.
+
+To build for a sub-folder yourself: `BASE_PATH=/my-folder npm run build`.
 
 ## Languages
 

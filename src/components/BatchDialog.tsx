@@ -24,8 +24,8 @@ export default function BatchDialog() {
       setFiles(list);
       setStatus(list.map(() => 'queued'));
     };
-    window.addEventListener('pixelcut-batch-files', onFiles);
-    return () => window.removeEventListener('pixelcut-batch-files', onFiles);
+    window.addEventListener('mayinpix-batch-files', onFiles);
+    return () => window.removeEventListener('mayinpix-batch-files', onFiles);
   }, []);
 
   const start = async () => {
