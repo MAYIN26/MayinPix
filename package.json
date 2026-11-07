@@ -1,0 +1,36 @@
+{
+  "name": "pixelcut-studio",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "PixelCut Studio — local, lossless background removal (AI, chroma key, pixel art)",
+  "scripts": {
+    "prepare-assets": "node scripts/prepare-assets.mjs",
+    "predev": "node scripts/prepare-assets.mjs",
+    "dev": "next dev",
+    "prebuild": "node scripts/prepare-assets.mjs",
+    "build": "next build",
+    "start": "node scripts/serve.mjs 3000",
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "test:e2e": "node tests/e2e.mjs"
+  },
+  "dependencies": {
+    "lucide-react": "^0.540.0",
+    "next": "^15.5.29",
+    "onnxruntime-web": "^1.22.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "zustand": "^5.0.8"
+  },
+  "devDependencies": {
+    "@imgly/background-removal-data": "^1.4.5",
+    "@tailwindcss/postcss": "^4.1.12",
+    "@types/node": "^22.18.0",
+    "@types/react": "^19.1.12",
+    "@types/react-dom": "^19.1.9",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.12",
+    "typescript": "^5.9.2"
+  }
+}
