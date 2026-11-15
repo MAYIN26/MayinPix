@@ -7,8 +7,8 @@ A professional background remover that runs **entirely in the browser**. It remo
 ## Quick start
 
 ```bash
-git clone https://github.com/MAYIN26/pixelcut-studio.git
-cd pixelcut-studio
+git clone https://github.com/MAYIN26/MayinPix.git
+cd MayinPix
 npm install
 npm run dev          # http://localhost:3000
 ```
